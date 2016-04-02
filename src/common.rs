@@ -21,10 +21,21 @@ pub fn parse_info_hash(input: &str) -> Result<String, String> {
         }
     }
 
-    match output.len() {
-        40 => return Ok(output),
-        _ => return Err("Hash is invalid (too short).".to_string()),
+    const VALID_CHARACTERS : &'static [char] = &['a', 'b', 'c', 'd',
+        'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    for i in output.chars() {
+        match VALID_CHARACTERS.iter().find(|&&j| j == i) {
+            Some(_) => {},
+            None => return Err("Hash is invalid (encoding).".to_string()),
+        }
     }
+
+
+    if output.len() != 40 {
+        return Err("Hash is invalid (too short).".to_string());
+    }
+
+    return Ok(output);
 }
 
 #[test]
