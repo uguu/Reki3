@@ -2,8 +2,6 @@ use hyper::server::Request;
 use hyper::uri::RequestUri;
 
 extern crate url;
-use self::url::Url;
-use self::url::UrlParser;
 
 use std::collections::HashMap;
 
@@ -15,19 +13,20 @@ pub fn announce(req: &Request) -> Result<Vec<u8>, String>
         _ => return Err("Problem retrieving path".to_string()),
     };
 
-    let base_url = Url::parse("http://localhost/").unwrap();
-    let mut url_parser = UrlParser::new();
-    url_parser.base_url(&base_url); // need a full absolute url for some reason
+    let mut query_hashmap: HashMap<&str, &str> = HashMap::new();
 
-    let url = match url_parser.parse(path) {
-        Ok(i) => i,
-        Err(_) => return Err("Problem parsing URL".to_string()),
+    let query = match path.find('?') {
+        Some(i) => &path[i+1..],
+        None => "",
     };
 
-    let query_pairs = url.query_pairs().unwrap_or(vec![]);
-    let mut query_hashmap: HashMap<&str, &str> = HashMap::new();
-    for &(ref key, ref value) in &query_pairs {
-        query_hashmap.insert(key, value);
+    for component in query.split('&') {
+        match component.find('=') {
+            Some(position) => {
+                query_hashmap.insert(&component[..position], &component[position + 1..]);
+            }
+            None => {},
+        }
     }
 
     // Check we have everything we need
