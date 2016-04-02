@@ -26,3 +26,9 @@ pub fn parse_info_hash(input: &str) -> Result<String, String> {
         _ => return Err("Hash is invalid (too short).".to_string()),
     }
 }
+
+#[test]
+fn parse_info_hash_test() {
+    let output = parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%9A").unwrap();
+    assert_eq!(&output, "123456789abcdef123456789abcdef123456789a");
+}
