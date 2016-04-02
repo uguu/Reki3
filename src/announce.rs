@@ -1,9 +1,9 @@
 use hyper::server::Request;
 use hyper::uri::RequestUri;
 
-extern crate url;
-
 use std::collections::HashMap;
+
+use common::*;
 
 pub fn announce(req: &Request) -> Result<Vec<u8>, String>
 {
@@ -30,9 +30,11 @@ pub fn announce(req: &Request) -> Result<Vec<u8>, String>
     }
 
     // Check we have everything we need
-    let info_hash = match query_hashmap.get("info_hash") {
-        Some(i) => i,
-        None => return Err("No info_hash specified".to_string()),
+    let info_hash = match query_hashmap.get("info_hash")
+        .ok_or_else(|| "No info_hash specified".to_string())
+        .and_then(|i| parse_info_hash(i)) {
+            Ok(j) => j,
+            Err(j) => return Err(j),
     };
     let port = match query_hashmap.get("port") {
         Some(i) => i,

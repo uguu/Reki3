@@ -5,6 +5,7 @@ use hyper::server::Response;
 use hyper::uri::RequestUri;
 
 mod announce;
+mod common;
 use announce::*;
 
 fn handle_request(req: Request, res: Response) {
