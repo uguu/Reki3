@@ -1,36 +1,37 @@
 extern crate hyper;
-
 use hyper::Server;
 use hyper::server::Request;
 use hyper::server::Response;
 use hyper::uri::RequestUri;
 
-fn hello(req: Request, res: Response) {
-    let retval;
+mod announce;
+use announce::*;
+
+fn handle_request(req: Request, res: Response) {
+    let reply: Result<Vec<u8>, String>;
     match req.uri {
         RequestUri::AbsolutePath(ref path) => {
             if path.as_str().starts_with("/announce") {
-                retval = "do some comparisons";
-            }
-            else if path.as_str().starts_with("/somethingelse") {
-                retval = "do some comparisons";
-            }
-            else if path.as_str().starts_with("/helloworld") {
-                retval = "Hi";
+                reply = announce(&req);
             }
             else {
-                retval = "Error";
+                reply = Ok("Hi".to_string().into_bytes());
             }
         },
         _ => {
-            retval = "Error";
+            reply = Ok("Hi".to_string().into_bytes());
         },
-    };
+    }
 
-    res.send(retval.as_bytes()).unwrap();
+    match reply {
+        Ok(i) => res.send(&i).unwrap(),
+        Err(j) => res.send((j + "\n").as_bytes()).unwrap(),
+    }
 }
 
 fn main() {
+    let num_threads = 10;
+
     Server::http("127.0.0.1:3000").unwrap()
-        .handle_threads(hello, 10).unwrap();
+        .handle_threads(handle_request, num_threads).unwrap();
 }
