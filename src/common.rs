@@ -29,6 +29,11 @@ pub fn parse_info_hash(input: &str) -> Result<String, String> {
 
 #[test]
 fn parse_info_hash_test() {
-    let output = parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%9A").unwrap();
-    assert_eq!(&output, "123456789abcdef123456789abcdef123456789a");
+    // Success
+    assert_eq!(parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%9A").unwrap(), "123456789abcdef123456789abcdef123456789a");
+
+    // Failures
+    assert!(parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx").is_err()); // too short
+    assert!(parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vxab").is_err()); // too long
+    assert!(parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%ZA").is_err()); // invalid percent encoding
 }
