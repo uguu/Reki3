@@ -115,10 +115,7 @@ pub fn query_hashmap_test() {
 /* The info hash is stored in mongo, which is not binary string safe apparently,
 so it needs to be parsed to a hexadecimal string rather than a binary one. */
 pub fn parse_info_hash(input: &str) -> Result<String, String> {
-    let info_hash_binary = match percent_decode(input) {
-        Ok(i) => i,
-        Err(j) => return Err(j),
-    };
+    let info_hash_binary = try!(percent_decode(input));
 
     if info_hash_binary.len() != 20 {
         return Err("Info hash is invalid (too short).".to_owned());
@@ -140,10 +137,7 @@ fn parse_info_hash_test() {
 
 /* Peer id is only ever used with redis, which is binary string safe. */
 pub fn parse_peer_id(input: &str) -> Result<Vec<u8>, String> {
-    let peer_id_binary = match percent_decode(input) {
-        Ok(i) => i,
-        Err(j) => return Err(j),
-    };
+    let peer_id_binary = try!(percent_decode(input));
 
     if peer_id_binary.len() != 20 {
         return Err("Peer ID is invalid (too short).".to_owned());
