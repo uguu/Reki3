@@ -1,8 +1,10 @@
 use hyper::server::Request;
+use std::sync::Mutex;
+extern crate redis;
 
 use common::*;
 
-pub fn announce(req: &Request) -> Result<Vec<u8>, String>
+pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> Result<Vec<u8>, String>
 {
     let query_hashmap = query_hashmap(&req.uri);
 
@@ -10,7 +12,6 @@ pub fn announce(req: &Request) -> Result<Vec<u8>, String>
     let info_hash = try!(query_hashmap.get("info_hash")
         .ok_or_else(|| "No info_hash specified".to_owned())
         .and_then(|i| parse_info_hash(i)));
-
     let peer_id = try!(query_hashmap.get("peer_id")
         .ok_or_else(|| "No peer_id specified".to_owned())
         .and_then(|i| parse_peer_id(i)));
