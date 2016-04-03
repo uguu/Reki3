@@ -1,41 +1,85 @@
-/* The info hash is stored in mongo, which is not binary string safe apparently,
-so it needs to be parsed to a hexadecimal string rather than a binary one. */
-pub fn parse_info_hash(input: &str) -> Result<String, String> {
-    let mut output = String::new();
+extern crate url;
+use self::url::percent_encoding::from_hex;
+
+/// Percent-decode the input string
+///
+/// Not using url::percent_decode because it does not throw an error for malformed percent encoding
+/// such as %AK
+pub fn percent_decode(input: &str) -> Result<Vec<u8>, String> {
+    let mut output: Vec<u8> = Vec::new();
+
     let mut input_iterator = input.as_bytes().into_iter();
     while let Some(i) = input_iterator.next() {
         match i {
-            &37u8 => { //% in ASCII
-                let hexdigits = (input_iterator.next(), input_iterator.next());
-                match hexdigits {
-                    (Some(hex1), Some(hex2)) => {
-                        output.push_str(&String::from_utf8_lossy(&[hex1.clone()]).to_lowercase());
-                        output.push_str(&String::from_utf8_lossy(&[hex2.clone()]).to_lowercase());
+            &b'%' => {
+                let hexdigit1 = input_iterator.next()
+                    .and_then(|h| from_hex(h.clone()));
+                let hexdigit2 = input_iterator.next()
+                    .and_then(|h| from_hex(h.clone()));
+                match (hexdigit1, hexdigit2) {
+                    (Some(h1), Some(h2)) => {
+                        output.push(h1 * 0x10 + h2);
                     },
-                    _ => {},
+                    _ => {
+                        return Err("Invalid percent encoding".to_string());
+                    },
                 }
             }
             _ => {
-                output.push_str(&format!("{:X}", i));
+                output.push(i.clone());
             }
         }
     }
 
-    const VALID_CHARACTERS : &'static [char] = &['a', 'b', 'c', 'd',
-        'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-    for i in output.chars() {
-        match VALID_CHARACTERS.iter().find(|&&j| j == i) {
-            Some(_) => {},
-            None => return Err("Hash is invalid (encoding).".to_string()),
-        }
-    }
-
-
-    if output.len() != 40 {
-        return Err("Hash is invalid (too short).".to_string());
-    }
-
     return Ok(output);
+}
+
+#[test]
+fn percent_decode_test() {
+    // Successes
+    assert_eq!(percent_decode("%1a").unwrap(), [26]);
+    assert_eq!(percent_decode("%1A").unwrap(), [26]);
+    assert_eq!(percent_decode("a").unwrap(), [97]);
+
+    // Failures
+    assert!(percent_decode("%").is_err()); //too short
+    assert!(percent_decode("%a").is_err()); //too short
+    assert!(percent_decode("%ak").is_err()); //not in [0-9a-f]
+}
+
+/// Converts bytes to a hexstring
+///
+/// Lowercase-hex
+pub fn hexstring(input: &[u8]) -> String
+{
+    let mut output = String::new();
+
+    for byte in input {
+        output.push_str(&format!("{:02x}", byte));
+    }
+
+    return output;
+}
+
+#[test]
+fn hexstring_test() {
+    assert_eq!(hexstring(&[0x5, 0x6]), "0506");
+    assert_eq!(hexstring(&[0x0B, 0xf1]), "0bf1");
+}
+
+/* The info hash is stored in mongo, which is not binary string safe apparently,
+so it needs to be parsed to a hexadecimal string rather than a binary one. */
+pub fn parse_info_hash(input: &str) -> Result<String, String> {
+    let info_hash_binary = match percent_decode(input) {
+        Ok(i) => i,
+        Err(j) => return Err(j),
+    };
+
+    if info_hash_binary.len() != 20 {
+        return Err("Info hash is invalid (too short).".to_string());
+    }
+
+    return Ok(hexstring(&info_hash_binary));
 }
 
 #[test]
