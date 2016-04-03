@@ -1,33 +1,10 @@
 use hyper::server::Request;
-use hyper::uri::RequestUri;
-
-use std::collections::HashMap;
 
 use common::*;
 
 pub fn announce(req: &Request) -> Result<Vec<u8>, String>
 {
-    // Parse query pairs out of URL path and store in a HashMap
-    let path = match req.uri {
-        RequestUri::AbsolutePath(ref i) => i,
-        _ => return Err("Problem retrieving path".to_owned()),
-    };
-
-    let mut query_hashmap: HashMap<&str, &str> = HashMap::new();
-
-    let query = match path.find('?') {
-        Some(i) => &path[i+1..],
-        None => "",
-    };
-
-    for component in query.split('&') {
-        match component.find('=') {
-            Some(position) => {
-                query_hashmap.insert(&component[..position], &component[position + 1..]);
-            }
-            None => {},
-        }
-    }
+    let query_hashmap = query_hashmap(&req.uri);
 
     // Check we have everything we need
     let info_hash = match query_hashmap.get("info_hash")
