@@ -13,9 +13,9 @@ pub fn percent_decode(input: &str) -> Result<Vec<u8>, String> {
         match i {
             &b'%' => {
                 let hexdigit1 = input_iterator.next()
-                    .and_then(|h| from_hex(h.clone()));
+                    .and_then(|h| from_hex(*h));
                 let hexdigit2 = input_iterator.next()
-                    .and_then(|h| from_hex(h.clone()));
+                    .and_then(|h| from_hex(*h));
                 match (hexdigit1, hexdigit2) {
                     (Some(h1), Some(h2)) => {
                         output.push(h1 * 0x10 + h2);
@@ -26,7 +26,7 @@ pub fn percent_decode(input: &str) -> Result<Vec<u8>, String> {
                 }
             }
             _ => {
-                output.push(i.clone());
+                output.push(*i);
             }
         }
     }
