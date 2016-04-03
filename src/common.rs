@@ -137,3 +137,28 @@ fn parse_info_hash_test() {
     assert!(parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vxab").is_err()); // too long
     assert!(parse_info_hash("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%ZA").is_err()); // invalid percent encoding
 }
+
+/* Peer id is only ever used with redis, which is binary string safe. */
+pub fn parse_peer_id(input: &str) -> Result<Vec<u8>, String> {
+    let peer_id_binary = match percent_decode(input) {
+        Ok(i) => i,
+        Err(j) => return Err(j),
+    };
+
+    if peer_id_binary.len() != 20 {
+        return Err("Peer ID is invalid (too short).".to_owned());
+    }
+
+    return Ok(peer_id_binary);
+}
+
+#[test]
+fn parse_peer_id_test() {
+    // Success
+    assert_eq!(parse_peer_id("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%9A").unwrap(), [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf1, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x9a]);
+
+    // Failures
+    assert!(parse_peer_id("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx").is_err()); // too short
+    assert!(parse_peer_id("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vxab").is_err()); // too long
+    assert!(parse_peer_id("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%ZA").is_err()); // invalid percent encoding
+}
