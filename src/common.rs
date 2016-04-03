@@ -21,7 +21,7 @@ pub fn percent_decode(input: &str) -> Result<Vec<u8>, String> {
                         output.push(h1 * 0x10 + h2);
                     },
                     _ => {
-                        return Err("Invalid percent encoding".to_string());
+                        return Err("Invalid percent encoding".to_owned());
                     },
                 }
             }
@@ -76,7 +76,7 @@ pub fn parse_info_hash(input: &str) -> Result<String, String> {
     };
 
     if info_hash_binary.len() != 20 {
-        return Err("Info hash is invalid (too short).".to_string());
+        return Err("Info hash is invalid (too short).".to_owned());
     }
 
     return Ok(hexstring(&info_hash_binary));

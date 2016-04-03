@@ -16,11 +16,11 @@ fn handle_request(req: Request, res: Response) {
                 reply = announce(&req);
             }
             else {
-                reply = Ok("Hi".to_string().into_bytes());
+                reply = Ok("Hi".to_owned().into_bytes());
             }
         },
         _ => {
-            reply = Ok("Hi".to_string().into_bytes());
+            reply = Ok("Hi".to_owned().into_bytes());
         },
     }
 
