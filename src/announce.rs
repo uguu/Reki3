@@ -36,9 +36,11 @@ pub fn announce(req: &Request) -> Result<Vec<u8>, String>
             Ok(j) => j,
             Err(j) => return Err(j),
     };
-    let port = match query_hashmap.get("port") {
-        Some(i) => i,
-        None => return Err("No port specified".to_string()),
+    let port = match query_hashmap.get("port")
+        .ok_or_else(|| "No port specified".to_string())
+        .and_then(|i| i.parse::<u16>().map_err(|_| "Invalid port specified".to_string())) {
+            Ok(i) => i,
+            Err(j) => return Err(j),
     };
 
     return Ok("worked".to_string().into_bytes());
