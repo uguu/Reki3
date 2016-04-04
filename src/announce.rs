@@ -81,6 +81,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     }
 
     let (total_seeds, total_peers, seeds, peers) = results;
+    debug!("  info_hash={}, seeds={}, peers={}", info_hash, total_seeds, total_peers);
 
     // Begin building output
     let mut response: Vec<u8> = Vec::new();
