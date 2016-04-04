@@ -7,6 +7,7 @@ use common::*;
 use self::byteorder::{BigEndian, WriteBytesExt};
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
+extern crate time;
 
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> Result<Vec<u8>, String>
 {
@@ -37,6 +38,40 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     };
     let peer_v4 = generate_peer_ipv4(ip_v4, port);
 
+    // Get ready for redis queries
+    let key_base = format!("torrent:{}", info_hash);
+    let key_seeds = format!("{}:seeds", key_base);
+    let key_peers = format!("{}:peers", key_base);
+    let time_now = time::get_time().sec;
+    let time_drop = time_now - 60;
+    let mut pipe = redis::pipe();
+
+    // Prune out old entries
+    pipe.cmd("ZREMRANGEBYSCORE").arg(&*key_seeds).arg(0).arg(time_drop).ignore();
+    pipe.cmd("ZREMRANGEBYSCORE").arg(&*key_peers).arg(0).arg(time_drop).ignore();
+
+    // Get total count of peers/seeds
+    pipe.cmd("ZCARD").arg(&*key_seeds);
+    pipe.cmd("ZCARD").arg(&*key_peers);
+
+    // Get peers and seeds
+    let numwant = 50;
+    pipe.cmd("ZRANGE").arg(&*key_seeds).arg(0).arg(numwant);
+    pipe.cmd("ZRANGE").arg(&*key_peers).arg(0).arg(numwant);
+
+    // Add
+    if left == 0 {
+        pipe.cmd("ZADD").arg(&*key_seeds).arg(time_now).arg(peer_v4).ignore();
+    }
+    else {
+        pipe.cmd("ZADD").arg(&*key_peers).arg(time_now).arg(peer_v4).ignore();
+    }
+
+    // Unlock mutex and go!
+    {
+        let r = redis_connection.lock().unwrap();
+        let _ : () = pipe.query(&(*r)).unwrap();
+    }
 
     return Ok("worked".to_owned().into_bytes());
 }
