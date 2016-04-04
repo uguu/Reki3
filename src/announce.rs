@@ -34,6 +34,9 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     if compact != 1 {
         return Err("This tracker only supports compact responses".to_owned());
     }
+    let numwant = try!(query_hashmap.get("numwant")
+        .unwrap_or(&"50")
+        .parse::<u64>().map_err(|_| "Invalid numwant specified".to_owned()));
     let ip = req.remote_addr.ip();
 
     // Generate compact peer entry
@@ -60,7 +63,6 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     pipe.cmd("ZCARD").arg(&*key_peers);
 
     // Get peers and seeds
-    let numwant = 50;
     pipe.cmd("ZRANGE").arg(&*key_seeds).arg(0).arg(numwant);
     pipe.cmd("ZRANGE").arg(&*key_peers).arg(0).arg(numwant);
 
