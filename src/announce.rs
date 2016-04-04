@@ -8,6 +8,7 @@ use self::byteorder::{BigEndian, WriteBytesExt};
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 extern crate time;
+use std::error::Error;
 
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> Result<Vec<u8>, String>
 {
@@ -68,12 +69,39 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     }
 
     // Unlock mutex and go!
+    let results: (u32, u32, Vec<Vec<u8>>, Vec<Vec<u8>>);
     {
         let r = redis_connection.lock().unwrap();
-        let _ : () = pipe.query(&(*r)).unwrap();
+        results = try!(pipe.query(&(*r))
+            .map_err(|e| format!("Redis error: {}", e.description())));
     }
 
-    return Ok("worked".to_owned().into_bytes());
+    let (total_seeds, total_peers, seeds, peers) = results;
+
+    // Begin building output
+    let mut response: Vec<u8> = Vec::new();
+    response.extend(format!("d8:completei{}e10:incompletei{}e8:intervali{}e5:peers",
+        total_seeds, total_peers, 60).bytes());
+
+    // dont give seeds to seeds
+    if left == 0 {
+        response.extend(format!("{}:", 6*peers.len()).bytes());
+        for i in peers {
+            response.extend(i);
+        }
+    }
+    else {
+        response.extend(format!("{}:", 6*seeds.len() + 6*peers.len()).bytes());
+        for i in seeds {
+            response.extend(i);
+        }
+        for i in peers {
+            response.extend(i);
+        }
+    }
+    response.extend(b"e");
+
+    return Ok(response);
 }
 
 fn generate_peer_ipv4(ip: Ipv4Addr, port: u16) -> Vec<u8> {
