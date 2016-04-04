@@ -3,7 +3,6 @@ use std::sync::Mutex;
 extern crate redis;
 extern crate byteorder;
 
-use config::*;
 use common::*;
 use self::byteorder::{BigEndian, WriteBytesExt};
 use std::net::IpAddr;
@@ -12,7 +11,9 @@ extern crate time;
 use std::error::Error;
 use std::str::FromStr;
 
-pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> Result<Vec<u8>, String>
+pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
+    announce_interval: u32,
+    drop_threshold: u32) -> Result<Vec<u8>, String>
 {
     let query_hashmap = query_hashmap(&req.uri);
 
@@ -61,7 +62,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     let key_seeds = format!("{}:seeds", key_base);
     let key_peers = format!("{}:peers", key_base);
     let time_now = time::get_time().sec*1000;
-    let time_drop = time_now - DROP_THRESHOLD*1000;
+    let time_drop = time_now - (drop_threshold as i64)*1000;
     let mut pipe = redis::pipe();
 
     // Prune out old entries
@@ -98,7 +99,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     // Begin building output
     let mut response: Vec<u8> = Vec::new();
     response.extend(format!("d8:completei{}e10:incompletei{}e8:intervali{}e5:peers",
-        total_seeds, total_peers, ANNOUNCE_INTERVAL).bytes());
+        total_seeds, total_peers, announce_interval).bytes());
 
     // dont give seeds to seeds
     if left == 0 {
