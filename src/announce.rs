@@ -10,6 +10,7 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 extern crate time;
 use std::error::Error;
+use std::str::FromStr;
 
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> Result<Vec<u8>, String>
 {
@@ -37,7 +38,16 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     let numwant = try!(query_hashmap.get("numwant")
         .unwrap_or(&"50")
         .parse::<u64>().map_err(|_| "Invalid numwant specified".to_owned()));
-    let ip = req.remote_addr.ip();
+
+    // Get ip
+    let ip;
+    if query_hashmap.contains_key("ip") {
+        ip = try!(IpAddr::from_str(query_hashmap.get("ip").unwrap())
+            .map_err(|_| "Invalid ip specified".to_owned()));
+    }
+    else {
+        ip = req.remote_addr.ip();
+    }
 
     // Generate compact peer entry
     let ip_v4 = match ip {
