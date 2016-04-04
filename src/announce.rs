@@ -10,6 +10,9 @@ use std::net::Ipv4Addr;
 extern crate time;
 use std::error::Error;
 
+const ANNOUNCE_INTERVAL: i64 = 60;
+const DROP_THRESHOLD: i64 = 3*ANNOUNCE_INTERVAL;
+
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> Result<Vec<u8>, String>
 {
     let query_hashmap = query_hashmap(&req.uri);
@@ -47,7 +50,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     let key_seeds = format!("{}:seeds", key_base);
     let key_peers = format!("{}:peers", key_base);
     let time_now = time::get_time().sec;
-    let time_drop = time_now - 60;
+    let time_drop = time_now - DROP_THRESHOLD;
     let mut pipe = redis::pipe();
 
     // Prune out old entries
@@ -84,7 +87,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     // Begin building output
     let mut response: Vec<u8> = Vec::new();
     response.extend(format!("d8:completei{}e10:incompletei{}e8:intervali{}e5:peers",
-        total_seeds, total_peers, 60).bytes());
+        total_seeds, total_peers, ANNOUNCE_INTERVAL).bytes());
 
     // dont give seeds to seeds
     if left == 0 {
@@ -117,4 +120,14 @@ fn generate_peer_ipv4(ip: Ipv4Addr, port: u16) -> Vec<u8> {
 #[test]
 fn generate_peer_ipv4_test() {
     assert_eq!(generate_peer_ipv4(Ipv4Addr::new(127, 0, 0, 1), 0x3039), &[127, 0, 0, 1, 0x30, 0x39]);
+}
+
+#[test]
+fn check_announce_interval_test() {
+    assert!(ANNOUNCE_INTERVAL > 0);
+}
+
+#[test]
+fn check_drop_threshold_test() {
+    assert!(DROP_THRESHOLD > ANNOUNCE_INTERVAL);
 }
