@@ -3,15 +3,13 @@ use std::sync::Mutex;
 extern crate redis;
 extern crate byteorder;
 
+use config::*;
 use common::*;
 use self::byteorder::{BigEndian, WriteBytesExt};
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 extern crate time;
 use std::error::Error;
-
-const ANNOUNCE_INTERVAL: i64 = 60;
-const DROP_THRESHOLD: i64 = 3*ANNOUNCE_INTERVAL;
 
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> Result<Vec<u8>, String>
 {
@@ -120,14 +118,4 @@ fn generate_peer_ipv4(ip: Ipv4Addr, port: u16) -> Vec<u8> {
 #[test]
 fn generate_peer_ipv4_test() {
     assert_eq!(generate_peer_ipv4(Ipv4Addr::new(127, 0, 0, 1), 0x3039), &[127, 0, 0, 1, 0x30, 0x39]);
-}
-
-#[test]
-fn check_announce_interval_test() {
-    assert!(ANNOUNCE_INTERVAL > 0);
-}
-
-#[test]
-fn check_drop_threshold_test() {
-    assert!(DROP_THRESHOLD > ANNOUNCE_INTERVAL);
 }

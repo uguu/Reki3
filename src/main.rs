@@ -4,9 +4,10 @@ use hyper::server::Request;
 use hyper::server::Response;
 use hyper::uri::RequestUri;
 extern crate redis;
-use redis::Commands;
 
 mod announce;
+mod config;
+use config::*;
 mod common;
 use announce::*;
 use std::sync::Mutex;
@@ -40,13 +41,11 @@ impl hyper::server::Handler for Reki {
 }
 
 fn main() {
-    let num_threads = 10;
-
-    let redis_client = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let redis_client = redis::Client::open(REDIS_URL).unwrap();
     let redis_connection = redis_client.get_connection().unwrap();
 
     let reki = Reki { redis_connection: Mutex::new(redis_connection) };
 
-    Server::http("127.0.0.1:3000").unwrap()
-        .handle_threads(reki, num_threads).unwrap();
+    Server::http(LISTEN_ADDR).unwrap()
+        .handle_threads(reki, NUM_THREADS).unwrap();
 }
