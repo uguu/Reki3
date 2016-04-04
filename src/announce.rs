@@ -31,6 +31,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     let info_hash = try!(query_hashmap.get("info_hash")
         .ok_or_else(|| "No info_hash specified".to_owned())
         .and_then(|i| parse_info_hash(i)));
+    debug!("    infohash={}", info_hash);
     /*let peer_id = try!(query_hashmap.get("peer_id")
         .ok_or_else(|| "No peer_id specified".to_owned())
         .and_then(|i| parse_peer_id(i)));*/
@@ -69,6 +70,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     }
     // Fallback on connection ip if it was invalid or not specified
     let ip = ip.unwrap_or(req.remote_addr.ip());
+    debug!("    ip={}, port={}", ip.to_string(), port);
 
     // Generate compact peer entry
     let peer = generate_peer(ip, port);
@@ -112,7 +114,7 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     }
 
     let (total_seeds, total_peers, seeds, peers) = results;
-    debug!("  info_hash={}, seeds={}, peers={}", info_hash, total_seeds, total_peers);
+    debug!("    seeds={}, peers={}", total_seeds, total_peers);
 
     // Begin building output
     let mut response: Vec<u8> = Vec::new();
