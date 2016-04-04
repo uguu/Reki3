@@ -6,15 +6,25 @@ extern crate byteorder;
 use common::*;
 use self::byteorder::{BigEndian, WriteBytesExt};
 use std::net::IpAddr;
-use std::net::Ipv4Addr;
 extern crate time;
 use std::error::Error;
 use std::str::FromStr;
+
+enum IPVersion {
+    V4,
+    V6
+}
 
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     announce_interval: u32,
     drop_threshold: u32) -> Result<Vec<u8>, String>
 {
+    // Get which ip version we are serving
+    let ip_version = match req.remote_addr.ip() {
+        IpAddr::V4(_) => IPVersion::V4,
+        IpAddr::V6(_) => IPVersion::V6,
+    };
+
     let query_hashmap = query_hashmap(&req.uri);
 
     // Check we have everything we need
@@ -41,26 +51,34 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
         .parse::<u64>().map_err(|_| "Invalid numwant specified".to_owned()));
 
     // Get ip
-    let ip;
-    if query_hashmap.contains_key("ip") {
-        ip = try!(IpAddr::from_str(query_hashmap.get("ip").unwrap())
-            .map_err(|_| "Invalid ip specified".to_owned()));
+    let ip: Option<IpAddr>;
+    match ip_version {
+        IPVersion::V4 => {
+            ip = query_hashmap.get("ip").
+                and_then(|i| IpAddr::from_str(i).ok()).
+                // only acccept it if it's an ipv4 address
+                and_then(|i| if let IpAddr::V4(_) = i { Some(i) } else { None });
+        }
+        IPVersion::V6 => {
+            ip = query_hashmap.get("ipv6").
+                or(query_hashmap.get("ip")).
+                and_then(|i| IpAddr::from_str(i).ok()).
+                // only acccept it if it's an ipv6 address
+                and_then(|i| if let IpAddr::V6(_) = i { Some(i) } else { None });
+        }
     }
-    else {
-        ip = req.remote_addr.ip();
-    }
+    // Fallback on connection ip if it was invalid or not specified
+    let ip = ip.unwrap_or(req.remote_addr.ip());
 
     // Generate compact peer entry
-    let ip_v4 = match ip {
-        IpAddr::V4(i) => i,
-        _ => return Err("Ipv6 not implemented yet".to_owned()),
-    };
-    let peer_v4 = generate_peer_ipv4(ip_v4, port);
+    let peer = generate_peer(ip, port);
+    let size_of_peer = &peer.len();
+    assert_eq!(*size_of_peer, if let IPVersion::V6 = ip_version {18} else {6});
 
     // Get ready for redis queries
     let key_base = format!("torrent:{}", info_hash);
-    let key_seeds = format!("{}:seeds", key_base);
-    let key_peers = format!("{}:peers", key_base);
+    let key_seeds = format!("{}:seeds{}", key_base, if let IPVersion::V6 = ip_version {"6"} else {""});
+    let key_peers = format!("{}:peers{}", key_base, if let IPVersion::V6 = ip_version {"6"} else {""});
     let time_now = time::get_time().sec*1000;
     let time_drop = time_now - (drop_threshold as i64)*1000;
     let mut pipe = redis::pipe();
@@ -79,10 +97,10 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
 
     // Add
     if left == 0 {
-        pipe.cmd("ZADD").arg(&*key_seeds).arg(time_now).arg(peer_v4).ignore();
+        pipe.cmd("ZADD").arg(&*key_seeds).arg(time_now).arg(peer).ignore();
     }
     else {
-        pipe.cmd("ZADD").arg(&*key_peers).arg(time_now).arg(peer_v4).ignore();
+        pipe.cmd("ZADD").arg(&*key_peers).arg(time_now).arg(peer).ignore();
     }
 
     // Unlock mutex and go!
@@ -98,18 +116,22 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
 
     // Begin building output
     let mut response: Vec<u8> = Vec::new();
-    response.extend(format!("d8:completei{}e10:incompletei{}e8:intervali{}e5:peers",
+    response.extend(format!("d8:completei{}e10:incompletei{}e8:intervali{}e",
         total_seeds, total_peers, announce_interval).bytes());
+    match ip_version {
+        IPVersion::V4 => response.extend(b"5:peers"),
+        IPVersion::V6 => response.extend(b"6:peers6"),
+    }
 
     // dont give seeds to seeds
     if left == 0 {
-        response.extend(format!("{}:", 6*peers.len()).bytes());
+        response.extend(format!("{}:", size_of_peer*peers.len()).bytes());
         for i in peers {
             response.extend(i);
         }
     }
     else {
-        response.extend(format!("{}:", 6*seeds.len() + 6*peers.len()).bytes());
+        response.extend(format!("{}:", size_of_peer*seeds.len() + size_of_peer*peers.len()).bytes());
         for i in seeds {
             response.extend(i);
         }
@@ -122,14 +144,27 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     return Ok(response);
 }
 
-fn generate_peer_ipv4(ip: Ipv4Addr, port: u16) -> Vec<u8> {
-    let mut retval = Vec::with_capacity(6);
-    retval.extend(ip.octets().iter());
+fn generate_peer(ip: IpAddr, port: u16) -> Vec<u8> {
+    let mut retval: Vec<u8>;
+    match ip {
+        IpAddr::V4(ip_v4) => {
+            retval = Vec::with_capacity(6);
+            retval.extend(ip_v4.octets().iter());
+        },
+        IpAddr::V6(ip_v6) => {
+            retval = Vec::with_capacity(18);
+            //retval.extend(ip_v6.octets().iter()); not yet in stable
+            for i in ip_v6.segments().iter() {
+                retval.write_u16::<BigEndian>(*i).unwrap();
+            }
+        }
+    }
     retval.write_u16::<BigEndian>(port).unwrap();
     return retval;
 }
 
 #[test]
-fn generate_peer_ipv4_test() {
-    assert_eq!(generate_peer_ipv4(Ipv4Addr::new(127, 0, 0, 1), 0x3039), &[127, 0, 0, 1, 0x30, 0x39]);
+fn generate_peer_test() {
+    assert_eq!(generate_peer(IpAddr::from_str("127.0.0.1").unwrap(), 0x3039), &[127, 0, 0, 1, 0x30, 0x39]);
+    assert_eq!(generate_peer(IpAddr::from_str("abcd:ef01:2345:6789:abcd:ef01:2345:6789").unwrap(), 0x1234), &[0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0x12, 0x34]);
 }
