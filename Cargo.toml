@@ -3,7 +3,6 @@ name = "reki3"
 version = "0.0.1"
 
 [dependencies]
-hyper = "0.8.0"
 url = "0.5.7"
 redis = "0.5.2"
 byteorder = "0.5"
@@ -11,3 +10,7 @@ time = "0.1.35"
 log = "0.3.5"
 env_logger = "0.3.2"
 getopts = "0.2.14"
+
+[dependencies.hyper]
+version = "0.8.0"
+default-features = false
