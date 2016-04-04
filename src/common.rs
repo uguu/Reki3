@@ -136,6 +136,7 @@ fn parse_info_hash_test() {
 }
 
 /* Peer id is only ever used with redis, which is binary string safe. */
+/*
 pub fn parse_peer_id(input: &str) -> Result<Vec<u8>, String> {
     let peer_id_binary = try!(percent_decode(input));
 
@@ -156,3 +157,4 @@ fn parse_peer_id_test() {
     assert!(parse_peer_id("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vxab").is_err()); // too long
     assert!(parse_peer_id("%124Vx%9A%BC%DE%F1%23Eg%89%AB%CD%EF%124Vx%ZA").is_err()); // invalid percent encoding
 }
+*/
