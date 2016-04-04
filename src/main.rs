@@ -40,7 +40,10 @@ impl hyper::server::Handler for Reki {
 
         match reply {
             Ok(i) => res.send(&i).unwrap(),
-            Err(j) => res.send((j + "\n").as_bytes()).unwrap(),
+            Err(j) => {
+                error!("Error {}", j);
+                res.send((j + "\n").as_bytes()).unwrap();
+            },
         }
     }
 }
