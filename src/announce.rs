@@ -29,7 +29,10 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
         .and_then(|i| i.parse::<u64>().map_err(|_| "Invalid left specified".to_owned())));
     let compact = try!(query_hashmap.get("compact")
         .ok_or_else(|| "No compact specified".to_owned())
-        .and_then(|i| i.parse::<u64>().map_err(|_| "Invalid left specified".to_owned())));
+        .and_then(|i| i.parse::<u64>().map_err(|_| "Invalid compact specified".to_owned())));
+    if compact != 1 {
+        return Err("This tracker only supports compact responses".to_owned());
+    }
     let ip = req.remote_addr.ip();
 
     // Generate compact peer entry
