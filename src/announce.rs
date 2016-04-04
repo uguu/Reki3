@@ -50,8 +50,8 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>) -> R
     let key_base = format!("torrent:{}", info_hash);
     let key_seeds = format!("{}:seeds", key_base);
     let key_peers = format!("{}:peers", key_base);
-    let time_now = time::get_time().sec;
-    let time_drop = time_now - DROP_THRESHOLD;
+    let time_now = time::get_time().sec*1000;
+    let time_drop = time_now - DROP_THRESHOLD*1000;
     let mut pipe = redis::pipe();
 
     // Prune out old entries
