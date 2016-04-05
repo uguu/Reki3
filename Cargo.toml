@@ -1,6 +1,12 @@
 [package]
 name = "reki3"
 version = "0.0.1"
+description = "A modern bittorrent tracker, using a Redis database"
+repository = "https://github.com/uguu/Reki3"
+homepage = "https://github.com/uguu/Reki3"
+license = "BSD-3-Clause"
+keywords = ["tracker", "bittorrent", "torrent"]
+authors = ["Miles Wu <miles.wu@wu-home.co.uk>"]
 
 [dependencies]
 url = "0.5.7"
