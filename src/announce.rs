@@ -15,6 +15,13 @@ enum IPVersion {
     V6
 }
 
+enum Event {
+    Unspecified,
+    Started,
+    Stopped,
+    Completed,
+}
+
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     announce_interval: u32,
     drop_threshold: u32) -> Result<Vec<u8>, String>
@@ -50,6 +57,24 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     let numwant = try!(query_hashmap.get("numwant")
         .unwrap_or(&"50")
         .parse::<u64>().map_err(|_| "Invalid numwant specified".to_owned()));
+    let event;
+    match query_hashmap.get("event") {
+        Some(i) => {
+            if *i == "started" {
+                event = Event::Started;
+            }
+            else if *i == "stopped" {
+                event = Event::Stopped;
+            }
+            else if *i == "completed" {
+                event = Event::Completed;
+            }
+            else {
+                return Err("Event parameter not understood".to_owned());
+            }
+        }
+        None => { event = Event::Unspecified; },
+    }
 
     // Get ip
     let ip: Option<IpAddr>;
