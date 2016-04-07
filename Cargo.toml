@@ -1,6 +1,6 @@
 [package]
 name = "reki3"
-version = "0.0.1"
+version = "0.0.2"
 description = "A modern bittorrent tracker, using a Redis database"
 repository = "https://github.com/uguu/Reki3"
 homepage = "https://github.com/uguu/Reki3"
