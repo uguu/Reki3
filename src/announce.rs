@@ -138,12 +138,17 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     pipe.cmd("ZRANGE").arg(&*key_seeds).arg(0).arg(numwant);
     pipe.cmd("ZRANGE").arg(&*key_peers).arg(0).arg(numwant);
 
-    // Add
-    if left == 0 {
-        pipe.cmd("ZADD").arg(&*key_seeds).arg(time_now).arg(peer).ignore();
-    }
-    else {
-        pipe.cmd("ZADD").arg(&*key_peers).arg(time_now).arg(peer).ignore();
+    // Add (only if not stopped)
+    match event {
+        Event::Stopped => {},
+        _ => {
+            if left == 0 {
+                pipe.cmd("ZADD").arg(&*key_seeds).arg(time_now).arg(peer).ignore();
+            }
+            else {
+                pipe.cmd("ZADD").arg(&*key_peers).arg(time_now).arg(peer).ignore();
+            }
+        },
     }
 
     // Unlock mutex and go!
