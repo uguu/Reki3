@@ -2,7 +2,7 @@ use hyper::server::Request;
 use std::sync::Mutex;
 extern crate redis;
 extern crate byteorder;
-
+extern crate hyper;
 use common::*;
 use self::byteorder::{BigEndian, WriteBytesExt};
 use std::net::IpAddr;
@@ -24,7 +24,8 @@ enum Event {
 
 pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
     announce_interval: u32,
-    drop_threshold: u32) -> Result<Vec<u8>, String>
+    drop_threshold: u32,
+    completion_website: &Option<String>) -> Result<Vec<u8>, String>
 {
     // Get which ip version we are serving
     let ip_version = match req.remote_addr.ip() {
@@ -74,6 +75,21 @@ pub fn announce(req: &Request, redis_connection: &Mutex<redis::Connection>,
             }
         }
         None => { event = Event::Unspecified; },
+    }
+
+    // Do completion hook if it exists
+    if let Event::Completed = event {
+        if let Some(ref completion_website_baseurl) = *completion_website {
+            let hyper_client = hyper::Client::new();
+            match hyper_client.get(
+                    &format!("{}tracker/{}/snatched", completion_website_baseurl, info_hash))
+                .header(hyper::header::Connection::close()).send() {
+                Ok(_) => {},
+                Err(e) => {
+                    error!("Error performing completion hook ({})", e.to_string());
+                }
+            }
+        }
     }
 
     // Get ip

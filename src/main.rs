@@ -20,6 +20,7 @@ struct Reki {
     redis_connection: Mutex<redis::Connection>,
     announce_interval: u32,
     drop_threshold: u32,
+    completion_website: Option<String>,
 }
 
 impl hyper::server::Handler for Reki {
@@ -31,7 +32,8 @@ impl hyper::server::Handler for Reki {
 
                 if path.as_str().starts_with("/announce") {
                     reply = announce(&req, &self.redis_connection,
-                        self.announce_interval, self.drop_threshold);
+                        self.announce_interval, self.drop_threshold,
+                        &self.completion_website);
                 }
                 else {
                     reply = Ok("Hi".to_owned().into_bytes());
@@ -71,6 +73,7 @@ fn main() {
     opts.optopt("t", "threads", "set number of threads (default 10)", "THREADS");
     opts.optopt("a", "announce_interval", "set announce interval (default 1800)", "SECONDS");
     opts.optopt("d", "drop_threshold", "set drop threshold (default 5400)", "SECONDS");
+    opts.optopt("c", "completion_website", "set website to send completion hook to (optional)", "WEBSITE");
     let matches = opts.parse(&args[1..]).unwrap();
 
     // Print help
@@ -102,6 +105,7 @@ fn main() {
     if drop_threshold < announce_interval {
         panic!("Drop threshold must be larger than announce interval");
     }
+    let completion_website = matches.opt_str("c");
 
     // Setup logging
     match std::env::var("RUST_LOG") {
@@ -128,6 +132,7 @@ fn main() {
         redis_connection: Mutex::new(redis_connection),
         announce_interval: announce_interval,
         drop_threshold: drop_threshold,
+        completion_website: completion_website,
     };
 
     info!("Reki starting up at {} on port {}", listen, port);
